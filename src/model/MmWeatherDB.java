@@ -10,7 +10,7 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 public class MmWeatherDB {
-public static final String DB_NAME = "cool_weather";//数据库名
+public static final String DB_NAME = "mm_weather";//数据库名
 public static final int VERSION = 1;//数据库版本
 private static MmWeatherDB MmWeatherDB;
 private SQLiteDatabase db;
