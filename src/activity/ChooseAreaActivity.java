@@ -7,12 +7,15 @@ import model.City;
 import model.County;
 import model.MmWeatherDB;
 import model.Province;
+import util.HttpCallbackListener;
 import util.HttpUtil;
-import util.HttpUtil.HttpCallbackListener;
 import util.Utility;
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
@@ -41,9 +44,19 @@ public class ChooseAreaActivity extends Activity {
 	private Province selectedProvince;//选中的省份
 	private City selectedCity;//选中的城市
 	private int currentLevel;//当前选中的级别
+	private boolean isFromWeatherActivity;//是否从WeatherActivity中跳转过来。
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 	super.onCreate(savedInstanceState);
+	isFromWeatherActivity = getIntent().getBooleanExtra("from_weather_ activity", true);
+	SharedPreferences prefs = PreferenceManager. getDefaultSharedPreferences(this);
+	// 已经选择了城市且不是从WeatherActivity跳转过来，才会直接跳转到WeatherActivity
+	if (prefs.getBoolean("city_selected", false)&& !isFromWeatherActivity) {
+	Intent intent = new Intent(this, WeatherActivity.class);
+	startActivity(intent);
+	finish();
+	return;
+	}
 	requestWindowFeature(Window.FEATURE_NO_TITLE);
 	setContentView(R.layout.choose_area);
 	listView = (ListView) findViewById(R.id.list_view);
@@ -51,6 +64,7 @@ public class ChooseAreaActivity extends Activity {
 	adapter = new ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, dataList);
 	listView.setAdapter(adapter);
 	mmWeatherDB = MmWeatherDB.getInstance(this);
+//点击ListView的子项*************************************************************************
 	listView.setOnItemClickListener(new OnItemClickListener() {
 	public void onItemClick(AdapterView<?> arg0, View view, int index,long arg3) {
 	if (currentLevel == LEVEL_PROVINCE) {
@@ -59,7 +73,13 @@ public class ChooseAreaActivity extends Activity {
 	} else if (currentLevel == LEVEL_CITY) {
 	selectedCity = cityList.get(index);
 	queryCounties();
-	}
+	}else if (currentLevel == LEVEL_COUNTY) {
+		String countyCode = countyList.get(index).getCountyCode();
+		Intent intent = new Intent(ChooseAreaActivity.this, WeatherActivity.class);
+		intent.putExtra("county_code", countyCode);
+		startActivity(intent);
+		finish();
+		}
 	}
 	});
 	queryProvinces(); // 加载省级数据
@@ -130,15 +150,13 @@ public class ChooseAreaActivity extends Activity {
     showProgressDialog();
     HttpUtil.sendHttpRequest(address, new HttpCallbackListener() {
     	@Override
-    	public void onFinish(String response) {
-     boolean result = false;
+    public void onFinish(String response) {
+           boolean result = false;
      if ("province".equals(type)) {
-	  result = Utility.handleProvincesResponse(mmWeatherDB, response);
-	 } 
-     else if ("city".equals(type)) {
-			result = Utility.handleCitiesResponse(mmWeatherDB,response, selectedProvince.getId());
-			} 
-     else if ("county".equals(type)) {
+	       result = Utility.handleProvincesResponse(mmWeatherDB, response);
+	 } else if ("city".equals(type)) {
+	       result = Utility.handleCitiesResponse(mmWeatherDB,response, selectedProvince.getId());
+			}else if ("county".equals(type)) {
 			result = Utility.handleCountiesResponse(mmWeatherDB,response, selectedCity.getId());
 			}
 	 if (result) {
@@ -172,9 +190,9 @@ public class ChooseAreaActivity extends Activity {
 }
 });
 }
-/**
-* 显示进度对话框
-*/
+
+//显示进度对话框*****************************************************************************
+
 private void showProgressDialog() {
 if (progressDialog == null) {
 progressDialog = new ProgressDialog(this);
@@ -183,17 +201,16 @@ progressDialog.setCanceledOnTouchOutside(false);
 }
 progressDialog.show();
 }
-/**
-* 关闭进度对话框
-*/
+
+//关闭进度对话框*****************************************************************************
+
 private void closeProgressDialog() {
 if (progressDialog != null) {
 progressDialog.dismiss();
 }
 }
-/**
-* 捕获Back按键，根据当前的级别来判断，此时应该返回市列表、省列表、还是直接退出
-* */
+
+//捕获Back按键，根据当前的级别来判断，此时应该返回市列表、省列表、还是直接退出******************************
 @Override
 public void onBackPressed() {
 if (currentLevel == LEVEL_COUNTY) {
@@ -201,6 +218,10 @@ queryCities();
 } else if (currentLevel == LEVEL_CITY) {
 queryProvinces();
 } else {
+	if (isFromWeatherActivity) {
+		Intent intent = new Intent(this, WeatherActivity.class);
+		startActivity(intent);
+		}
 finish();
 }
 }
